@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-import {parse, stringify} from "qs";
-import moment from 'moment';
+import { parse, stringify } from "qs";
+import moment from "moment";
 
 export function fixedZero(val) {
   return val * 1 < 10 ? `0${val}` : val;
@@ -24,7 +24,7 @@ export function fixedZero(val) {
 
 export function getPlainNode(nodeList, parentPath = "") {
   const arr = [];
-  nodeList.forEach(node => {
+  nodeList.forEach((node) => {
     const item = node;
     item.path = `${parentPath}/${item.path || ""}`.replace(/\/+/g, "/");
     item.exact = true;
@@ -52,13 +52,16 @@ function accMul(arg1, arg2) {
 export function digitUppercase(n) {
   const fraction = ["角", "分"];
   const digit = ["零", "壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌", "玖"];
-  const unit = [["元", "万", "亿"], ["", "拾", "佰", "仟", "万"]];
+  const unit = [
+    ["元", "万", "亿"],
+    ["", "拾", "佰", "仟", "万"],
+  ];
   let num = Math.abs(n);
   let s = "";
   fraction.forEach((item, index) => {
     s += (digit[Math.floor(accMul(num, 10 * 10 ** index)) % 10] + item).replace(
       /零./,
-      ""
+      "",
     );
   });
   s = s || "整";
@@ -97,14 +100,27 @@ function getRenderArr(routes) {
   renderArr.push(routes[0]);
   for (let i = 1; i < routes.length; i += 1) {
     // 去重
-    renderArr = renderArr.filter(item => getRelation(item, routes[i]) !== 1);
+    renderArr = renderArr.filter((item) => getRelation(item, routes[i]) !== 1);
     // 是否包含
-    const isAdd = renderArr.every(item => getRelation(item, routes[i]) === 3);
+    const isAdd = renderArr.every((item) => getRelation(item, routes[i]) === 3);
     if (isAdd) {
       renderArr.push(routes[i]);
     }
   }
   return renderArr;
+}
+
+function zeroPadding(number, len) {
+  const getZero = (l) => {
+    let z = "";
+    for (let i = 0, j = l; i < j; i += 1) {
+      z += "0";
+    }
+    return z;
+  };
+  return (
+    (`${number}`.length < len ? getZero(len - `${number}`.length) : "") + number
+  );
 }
 
 /**
@@ -115,22 +131,22 @@ function getRenderArr(routes) {
  */
 export function getRoutes(path, routerData) {
   let routes = Object.keys(routerData).filter(
-    routePath => routePath.indexOf(path) === 0 && routePath !== path
+    (routePath) => routePath.indexOf(path) === 0 && routePath !== path,
   );
   // Replace path to '' eg. path='user' /user/name => name
-  routes = routes.map(item => item.replace(path, ""));
+  routes = routes.map((item) => item.replace(path, ""));
   // Get the route to be rendered to remove the deep rendering
   const renderArr = getRenderArr(routes);
   // Conversion and stitching parameters
-  const renderRoutes = renderArr.map(item => {
+  const renderRoutes = renderArr.map((item) => {
     const exact = !routes.some(
-      route => route !== item && getRelation(route, item) === 1
+      (route) => route !== item && getRelation(route, item) === 1,
     );
     return {
       exact,
       ...routerData[`${path}${item}`],
       key: `${path}${item}`,
-      path: `${path}${item}`
+      path: `${path}${item}`,
     };
   });
   return renderRoutes;
@@ -149,7 +165,8 @@ export function getQueryPath(path = "", query = {}) {
 }
 
 /* eslint no-useless-escape:0 */
-const reg = /(((^https?:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+(?::\d+)?|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)$/;
+const reg =
+  /(((^https?:(?:\/\/)?)(?:[-;:&=\+\$,\w]+@)?[A-Za-z0-9.-]+(?::\d+)?|(?:www.|[-;:&=\+\$,\w]+@)[A-Za-z0-9.-]+)((?:\/[\+~%\/.\w-_]*)?\??(?:[-\+=&;%@.\w_]*)#?(?:[\w]*))?)$/;
 
 export function isUrl(path) {
   return reg.test(path);
@@ -165,18 +182,18 @@ export function isUrl(path) {
 export function filterTree(
   treeNode,
   func = () => {},
-  treeChildrenAtrr = "children"
+  treeChildrenAtrr = "children",
 ) {
   func(treeNode);
   if (treeNode[treeChildrenAtrr] && treeNode[treeChildrenAtrr].length > 0) {
-    treeNode[treeChildrenAtrr].forEach(e => {
+    treeNode[treeChildrenAtrr].forEach((e) => {
       filterTree(e, func);
     });
   }
 }
 
 export function titleCase(str) {
-  return str.toLowerCase().replace(/( |^)[a-z]/g, L => L.toUpperCase());
+  return str.toLowerCase().replace(/( |^)[a-z]/g, (L) => L.toUpperCase());
 }
 
 export function guid() {
@@ -188,12 +205,41 @@ export function guid() {
 
 export function formatTimestamp(timestamp) {
   const date = moment(timestamp);
-  return date.format('YYYY-MM-DD HH:mm:ss');
+  return date.format("YYYY-MM-DD HH:mm:ss");
 }
 
 export function findKeyByValue(obj, value) {
-  return Object.keys(obj).find(key => obj[key] === value);
+  return Object.keys(obj).find((key) => obj[key] === value);
 }
 
+export function formatDate(str) {
+  const d = str.split(" ")[0];
+  const da = d.split("-");
+  if (da.length < 3) return null;
+  return moment(
+    `${da[0]}-${zeroPadding(da[1], 2)}-${zeroPadding(da[2], 2)}`,
+    "YYYY-MM-DD",
+  );
+}
 
+export function formatDateString(str) {
+  const f = formatDate(str);
+  return f ? f.format("YYYY-MM-DD") : "";
+}
 
+export function formatTime(str) {
+  const sa = str.split(" ");
+  if (sa.length < 2) return null;
+  const t = sa[1];
+  const ta = t.split(":");
+  if (ta.length < 3) return null;
+  return moment(
+    `${zeroPadding(ta[0], 2)}:${zeroPadding(ta[1], 2)}:${zeroPadding(ta[2], 2)}`,
+    "HH:mm:ss",
+  );
+}
+
+export function formatTimeString(str) {
+  const f = formatTime(str);
+  return f ? f.format("HH:mm:ss") : "";
+}

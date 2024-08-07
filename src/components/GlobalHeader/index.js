@@ -16,10 +16,12 @@
  */
 
 import React, { PureComponent } from "react";
-import { Dropdown, Form, Icon, Input, Menu, Modal, Button } from "antd";
+import { Button, Dropdown, Form, Icon, Input, Menu, Modal } from "antd";
 import { connect } from "dva";
+import AddModal from "./AddModal";
+import ImportResultModal from "./ImportResultModal";
 import styles from "./index.less";
-import { getIntlContent, getCurrentLocale } from "../../utils/IntlUtils";
+import { getCurrentLocale, getIntlContent } from "../../utils/IntlUtils";
 import { checkUserPassword } from "../../services/api";
 import { emit } from "../../utils/emit";
 
@@ -39,13 +41,16 @@ const TranslationOutlinedSvg = () => (
     <path d="M414.3 256h-60.6c-3.4 0-6.4 2.2-7.6 5.4L219 629.4c-.3.8-.4 1.7-.4 2.6 0 4.4 3.6 8 8 8h55.1c3.4 0 6.4-2.2 7.6-5.4L322 540h196.2L422 261.4a8.42 8.42 0 00-7.7-5.4zm12.4 228h-85.5L384 360.2 426.7 484zM936 528H800v-93c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v93H592c-13.3 0-24 10.7-24 24v176c0 13.3 10.7 24 24 24h136v152c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8V752h136c13.3 0 24-10.7 24-24V552c0-13.3-10.7-24-24-24zM728 680h-88v-80h88v80zm160 0h-88v-80h88v80z" />
   </svg>
 );
-const TranslationOutlined = props => (
+const TranslationOutlined = (props) => (
   <Icon component={TranslationOutlinedSvg} {...props} />
 );
 
-@connect(({ manage, loading }) => ({
+@connect(({ global, manage, loading }) => ({
   manage,
-  loading: loading.effects["manage/update"]
+  permissions: global.permissions,
+  namespaces: global.namespaces,
+  currentNamespaceId: global.currentNamespaceId,
+  loading: loading.effects["manage/update"],
 }))
 @Form.create({})
 class GlobalHeader extends PureComponent {
@@ -55,10 +60,26 @@ class GlobalHeader extends PureComponent {
       help: (
         <Menu>
           <Menu.Item>
-            <span><a href="https://shenyu.apache.org" target="_blank" rel="noreferrer">Website</a></span>
+            <span>
+              <a
+                href="https://shenyu.apache.org"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Website
+              </a>
+            </span>
           </Menu.Item>
           <Menu.Item>
-            <span><a href="https://github.com/apache/shenyu" target="_blank" rel="noreferrer">Github</a></span>
+            <span>
+              <a
+                href="https://github.com/apache/shenyu"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Github
+              </a>
+            </span>
           </Menu.Item>
         </Menu>
       ),
@@ -77,43 +98,122 @@ class GlobalHeader extends PureComponent {
         : "en-US",
       userName: window.sessionStorage.getItem("userName"),
       visible: false,
-      display: "none"
+      display: "none",
+      popup: "",
     };
   }
 
-  componentDidMount(){
+  componentDidMount() {
     const token = window.sessionStorage.getItem("token");
     if (token) {
-      checkUserPassword().then(res => {
+      checkUserPassword().then((res) => {
         if (res && res.code !== 200) {
-          this.setState({ visible: true ,display :"block"})
+          this.setState({ visible: true, display: "block" });
         }
-      })
+      });
     }
+    this.fetchNamespaces();
   }
 
   componentWillUnmount() {
     this.setState = () => false;
   }
 
-  handleLocalesValueChange = value => {
+  fetchNamespaces = () => {
+    const { dispatch } = this.props;
+    dispatch({
+      type: "global/fetchNamespaces",
+    });
+  };
+
+  handleLocalesValueChange = (value) => {
     const { changeLocalName } = this.props;
     if (value.key === "0") {
       emit.emit("change_language", "en-US");
       window.sessionStorage.setItem("locale", "en-US");
       this.setState({
-        localeName: "en-Us"
+        localeName: "en-Us",
       });
       changeLocalName("en-Us");
     } else {
       emit.emit("change_language", "zh-CN");
       window.sessionStorage.setItem("locale", "zh-CN");
       this.setState({
-        localeName: "zh-CN"
+        localeName: "zh-CN",
       });
       changeLocalName("zh-CN");
     }
     getCurrentLocale(this.state.localeName);
+  };
+
+  handleNamespacesValueChange = (value) => {
+    const { dispatch } = this.props;
+    dispatch({
+      type: "global/saveCurrentNamespaceId",
+      payload: value.key,
+    });
+  };
+
+  importConfigClick = () => {
+    this.setState({
+      popup: (
+        <AddModal
+          disabled={false}
+          handleOk={(values) => {
+            const { dispatch } = this.props;
+            dispatch({
+              type: "common/import",
+              payload: values,
+              callback: (res) => {
+                this.closeModal(true);
+                this.showImportRestlt(JSON.parse(res));
+              },
+            });
+          }}
+          handleCancel={() => {
+            this.closeModal();
+          }}
+        />
+      ),
+    });
+  };
+
+  showImportRestlt = (json) => {
+    this.setState({
+      popup: (
+        <ImportResultModal
+          disabled={false}
+          json={json}
+          title={getIntlContent("SHENYU.COMMON.IMPORT.RESULT")}
+          onCancel={() => this.closeModal(true)}
+          onOk={() => this.closeModal(true)}
+        />
+      ),
+    });
+  };
+
+  closeModal = (refresh) => {
+    if (refresh) {
+      this.setState({ popup: "" }, this.query);
+    }
+    this.setState({ popup: "" });
+  };
+
+  // 导出数据
+  exportAllClick = () => {
+    const { dispatch } = this.props;
+    dispatch({
+      type: "common/exportAll",
+    });
+  };
+
+  checkAuth = (perms) => {
+    const { permissions } = this.props;
+    return (
+      (permissions.button ?? []).filter((item) => {
+        return item.perms === perms;
+      }).length > 0
+    );
   };
 
   render() {
@@ -121,9 +221,11 @@ class GlobalHeader extends PureComponent {
       onLogout,
       form: { getFieldDecorator, resetFields, validateFields, getFieldValue },
       dispatch,
-      loading
+      loading,
+      namespaces,
+      currentNamespaceId,
     } = this.props;
-    const { userName, visible } = this.state;
+    const { popup, userName, visible } = this.state;
     const menu = (
       <Menu>
         <Menu.Item
@@ -135,6 +237,16 @@ class GlobalHeader extends PureComponent {
           <Icon type="form" />{" "}
           {getIntlContent("SHENYU.GLOBALHEADER.CHANGE.PASSWORD")}
         </Menu.Item>
+        {this.checkAuth("system:manager:exportConfig") && (
+          <Menu.Item key="2" onClick={this.exportAllClick}>
+            <Icon type="export" /> {getIntlContent("SHENYU.COMMON.EXPORT")}
+          </Menu.Item>
+        )}
+        {this.checkAuth("system:manager:importConfig") && (
+          <Menu.Item key="3" onClick={this.importConfigClick}>
+            <Icon type="import" /> {getIntlContent("SHENYU.COMMON.IMPORT")}
+          </Menu.Item>
+        )}
         <Menu.Item key="0" onClick={onLogout}>
           <Icon type="logout" /> {getIntlContent("SHENYU.GLOBALHEADER.LOGOUT")}
         </Menu.Item>
@@ -142,29 +254,64 @@ class GlobalHeader extends PureComponent {
     );
     return (
       <div className={styles.header}>
-        <span className={styles.text}>Apache ShenYu Gateway Management System</span>
+        <span className={styles.text}>
+          Apache ShenYu Gateway Management System
+        </span>
         <div>
           <div className={styles.item}>
             <Dropdown
               placement="bottomCenter"
-              overlay={this.state.help}
+              overlay={
+                <Menu onClick={this.handleNamespacesValueChange}>
+                  {namespaces.map((namespace) => {
+                    let isCurrentNamespace =
+                      currentNamespaceId === namespace.namespaceId;
+                    return (
+                      <Menu.Item
+                        key={namespace.namespaceId}
+                        disabled={isCurrentNamespace}
+                      >
+                        <span>{namespace.name}</span>
+                      </Menu.Item>
+                    );
+                  })}
+                </Menu>
+              }
             >
-              <Button><Icon type="question-circle" /></Button>
+              <Button>
+                <a
+                  className="ant-dropdown-link"
+                  style={{ fontWeight: "bold" }}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  {`${getIntlContent("SHENYU.SYSTEM.NAMESPACE")} / ${
+                    namespaces.find(
+                      (namespace) =>
+                        currentNamespaceId === namespace.namespaceId,
+                    )?.name
+                  } `}
+                </a>
+                <Icon type="down" />
+              </Button>
             </Dropdown>
           </div>
           <div className={styles.item}>
-            <Dropdown
-              placement="bottomCenter"
-              overlay={this.state.menu}
-            >
-              <Button><TranslationOutlined /></Button>
+            <Dropdown placement="bottomCenter" overlay={this.state.help}>
+              <Button>
+                <Icon type="question-circle" />
+              </Button>
+            </Dropdown>
+          </div>
+          <div className={styles.item}>
+            <Dropdown placement="bottomCenter" overlay={this.state.menu}>
+              <Button>
+                <TranslationOutlined />
+              </Button>
             </Dropdown>
           </div>
           <div className={`${styles.item} ${styles.right}`}>
             <Dropdown.Button overlay={menu} icon={<Icon type="user" />}>
-              <span>
-                {userName}
-              </span>
+              <span>{userName}</span>
             </Dropdown.Button>
           </div>
         </div>
@@ -174,10 +321,10 @@ class GlobalHeader extends PureComponent {
           visible={visible}
           forceRender
           okButtonProps={{
-            loading
+            loading,
           }}
           onCancel={() => {
-            this.setState({ visible: false, display: "none"});
+            this.setState({ visible: false, display: "none" });
             resetFields();
           }}
           onOk={() => {
@@ -189,22 +336,28 @@ class GlobalHeader extends PureComponent {
                     id: window.sessionStorage.getItem("userId"),
                     userName: window.sessionStorage.getItem("userName"),
                     password: values.password,
-                    oldPassword: values.oldPassword
+                    oldPassword: values.oldPassword,
                   },
                   callback: () => {
                     this.setState({ visible: false, display: "none" });
                     resetFields();
                     onLogout();
-                  }
+                  },
                 });
               }
             });
           }}
         >
-          <div className={styles.warning} style={{display: this.state.display, textAlign: 'center', marginBottom: 16}}>
+          <div
+            className={styles.warning}
+            style={{
+              display: this.state.display,
+              textAlign: "center",
+              marginBottom: 16,
+            }}
+          >
             {getIntlContent("SHENYU.SYSTEM.USER.CHANGEPASSWORD")}
           </div>
-
 
           <Form labelCol={{ span: 8 }} wrapperCol={{ span: 14 }}>
             <Form.Item
@@ -216,17 +369,13 @@ class GlobalHeader extends PureComponent {
                   {
                     validator(rule, value, callback) {
                       if (!value || value.length === 0) {
-                        callback(
-                          getIntlContent(
-                            "SHENYU.GLOBALHEADER.NOTNULL"
-                          )
-                        );
+                        callback(getIntlContent("SHENYU.GLOBALHEADER.NOTNULL"));
                         return;
                       }
                       callback();
-                    }
-                  }
-                ]
+                    },
+                  },
+                ],
               })(<Input.Password allowClear />)}
             </Form.Item>
             <Form.Item
@@ -242,20 +391,24 @@ class GlobalHeader extends PureComponent {
                       if (!value) {
                         callback(
                           getIntlContent(
-                            "SHENYU.GLOBALHEADER.PASSWORD.REQUIRED"
-                          )
+                            "SHENYU.GLOBALHEADER.PASSWORD.REQUIRED",
+                          ),
                         );
                         return;
                       }
                       if (value.length < 8 || value.length > 16) {
                         callback(
-                          getIntlContent("SHENYU.GLOBALHEADER.PASSWORD.LENGTH")
+                          getIntlContent("SHENYU.GLOBALHEADER.PASSWORD.LENGTH"),
                         );
                         return;
                       }
-                      if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#.=_+-])[A-Za-z\d@$!%*?&#.=_+-]{8,}$/.test(value)) {
+                      if (
+                        !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#.=_+-])[A-Za-z\d@$!%*?&#.=_+-]{8,}$/.test(
+                          value,
+                        )
+                      ) {
                         callback(
-                          getIntlContent("SHENYU.GLOBALHEADER.PASSWORD.RULE")
+                          getIntlContent("SHENYU.GLOBALHEADER.PASSWORD.RULE"),
                         );
                         return;
                       }
@@ -263,9 +416,9 @@ class GlobalHeader extends PureComponent {
                         validateFields(["confirmPassword"], { force: true });
                       }
                       callback();
-                    }
-                  }
-                ]
+                    },
+                  },
+                ],
               })(<Input.Password allowClear />)}
             </Form.Item>
             <Form.Item
@@ -280,27 +433,28 @@ class GlobalHeader extends PureComponent {
                       if (!value) {
                         callback(
                           getIntlContent(
-                            "SHENYU.GLOBALHEADER.CONFIRM.PASSWORD.REQUIRED"
-                          )
+                            "SHENYU.GLOBALHEADER.CONFIRM.PASSWORD.REQUIRED",
+                          ),
                         );
                         return;
                       }
                       if (password !== value) {
                         callback(
                           getIntlContent(
-                            "SHENYU.GLOBALHEADER.CONFIRM.PASSWORD.RULE"
-                          )
+                            "SHENYU.GLOBALHEADER.CONFIRM.PASSWORD.RULE",
+                          ),
                         );
                         return;
                       }
                       callback();
-                    }
-                  }
-                ]
+                    },
+                  },
+                ],
               })(<Input.Password allowClear />)}
             </Form.Item>
           </Form>
         </Modal>
+        {popup}
       </div>
     );
   }

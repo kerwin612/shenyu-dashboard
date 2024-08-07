@@ -15,27 +15,33 @@
  * limitations under the License.
  */
 
-import React, {Component} from 'react';
-import CryptoJS from 'crypto-js';
-import {connect} from 'dva';
-import {Alert} from 'antd';
-import Login from 'components/Login';
-import styles from './Login.less';
-import {querySecretInfo} from "../../services/api";
+import React, { Component } from "react";
+import CryptoJS from "crypto-js";
+import { connect } from "dva";
+import { Alert } from "antd";
+import UUID from "uuid";
+import Login from "components/Login";
+import styles from "./Login.less";
+import { querySecretInfo } from "../../services/api";
 
 const { UserName, Password, Submit, VerifyCode, LoginCode } = Login;
 
-let secretKey= ""
-let secretIv = ""
+let secretKey = "";
+let secretIv = "";
 async function initSecret() {
   try {
     let promise = await querySecretInfo();
-    if (typeof promise !== 'undefined') {
+    if (typeof promise !== "undefined") {
       if (promise.status === 200) {
         let body = await promise.json();
         let secret = JSON.parse(atob(body.data));
-        if ((secret.key != null && secret.key !== "") && (secret.iv != null && secret.iv !== "")) {
-          secretKey = secret.key
+        if (
+          secret.key != null &&
+          secret.key !== "" &&
+          secret.iv != null &&
+          secret.iv !== ""
+        ) {
+          secretKey = secret.key;
           secretIv = secret.iv;
         }
       }
@@ -47,80 +53,114 @@ async function initSecret() {
 initSecret().then(() => {});
 @connect(({ login, loading }) => ({
   login,
-  submitting: loading.effects['login/login'],
+  submitting: loading.effects["login/login"],
 }))
 export default class LoginPage extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      VCode: "",
-      codeError: true
+      VCode: undefined,
+      codeError: true,
+      needCode: false,
     };
     this.ChildRef = React.createRef();
   }
 
   componentDidMount() {
-    this.ChildRef.current.handleChange();
+    this.ChildRef.current?.handleChange();
   }
 
   handleSubmit = (err, values) => {
-
     const { dispatch } = this.props;
+    const { needCode } = this.state;
     if (!err) {
-      if (values.verifyCode !== this.state.VCode) {
+      if (needCode && values.verifyCode !== this.state.VCode) {
         this.setState({ codeError: false });
         this.ChildRef.current.handleChange();
         return;
       }
-      if (secretKey !== "" && secretIv !== "" ){
+      if (secretKey !== "" && secretIv !== "") {
         const keyByte = CryptoJS.enc.Utf8.parse(secretKey);
         const ivByte = CryptoJS.enc.Utf8.parse(secretIv);
-        const encryptedPassword = CryptoJS.AES.encrypt(values.password, keyByte, {
-          iv: ivByte,
-          mode: CryptoJS.mode.CBC,
-          padding: CryptoJS.pad.Pkcs7
-        });
+        const encryptedPassword = CryptoJS.AES.encrypt(
+          values.password,
+          keyByte,
+          {
+            iv: ivByte,
+            mode: CryptoJS.mode.CBC,
+            padding: CryptoJS.pad.Pkcs7,
+          },
+        );
         values.password = encryptedPassword.toString();
       }
 
       dispatch({
-        type: 'login/login',
+        type: "login/login",
         payload: {
           ...values,
+          clientId: UUID.v4().replaceAll("-", ""),
+          callback: (res) => {
+            if (res.code === 500) {
+              this.setState({ needCode: true });
+            }
+          },
         },
       });
     }
   };
 
-  renderMessage = content => {
-    return <Alert style={{ marginBottom: 24 }} message={content} type="error" showIcon />;
-  }
+  // eslint-disable-next-line react/no-unused-class-component-methods
+  renderMessage = (content) => {
+    return (
+      <Alert
+        style={{ marginBottom: 24 }}
+        message={content}
+        type="error"
+        showIcon
+      />
+    );
+  };
 
   getCode = (code) => {
     this.setState({
-      VCode: code
-    })
-  }
+      VCode: code,
+    });
+  };
 
   codeError = () => {
-    return this.state.codeError ? <span /> : <span className={styles.codeError} id='codeError'>Please enter correct verify code!</span>
-  }
-
-
+    return this.state.codeError ? (
+      <span />
+    ) : (
+      <span className={styles.codeError} id="codeError">
+        Please enter correct verify code!
+      </span>
+    );
+  };
 
   render() {
     const { submitting } = this.props;
+    const { needCode } = this.state;
     return (
       <div className={styles.main}>
         <Login onSubmit={this.handleSubmit}>
           <div>
             <UserName name="userName" placeholder="Account" />
             <Password name="password" placeholder="Password" />
-            <div className={styles.verify}>
-              <VerifyCode name="verifyCode" placeholder="Verification Code" />
-              {this.codeError()}
-            </div>
-            <LoginCode onRef={this.ChildRef} ChildGetCode={(code) => this.getCode(code)} />
+            {needCode && (
+              <>
+                <div className={styles.verify}>
+                  <VerifyCode
+                    name="verifyCode"
+                    placeholder="Verification Code"
+                  />
+                  {this.codeError()}
+                </div>
+                <LoginCode
+                  onRef={this.ChildRef}
+                  ChildGetCode={(code) => this.getCode(code)}
+                />
+              </>
+            )}
           </div>
           <Submit loading={submitting}>Login</Submit>
         </Login>

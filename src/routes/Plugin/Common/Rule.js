@@ -16,20 +16,38 @@
  */
 
 import React, { Component } from "react";
-import { Modal, Form, Select, Input, Switch, Button, message, DatePicker, TimePicker } from "antd";
+import {
+  Modal,
+  Form,
+  Row,
+  Col,
+  Select,
+  Input,
+  Switch,
+  Button,
+  message,
+  DatePicker,
+  TimePicker,
+} from "antd";
 import { connect } from "dva";
 import styles from "../index.less";
 import { getIntlContent } from "../../../utils/IntlUtils";
 import CommonRuleHandle from "./CommonRuleHandle";
 import PluginRuleHandle from "../PluginRuleHandle";
 import RuleCopy from "./RuleCopy";
+import {
+  formatDate,
+  formatTime,
+  formatDateString,
+  formatTimeString,
+} from "../../../utils/utils";
 
 const FormItem = Form.Item;
 const { Option } = Select;
 
 @connect(({ pluginHandle, shenyuDict }) => ({
   pluginHandle,
-  shenyuDict
+  shenyuDict,
 }))
 class AddModal extends Component {
   constructor(props) {
@@ -39,7 +57,7 @@ class AddModal extends Component {
     this.state = {
       customRulePage: customPluginNames.includes(props.pluginName),
 
-      visible: false
+      visible: false,
     };
 
     this.initRuleCondition(props);
@@ -52,7 +70,7 @@ class AddModal extends Component {
       pluginId,
       handle,
       multiRuleHandle,
-      form: { setFieldsValue }
+      form: { setFieldsValue },
     } = this.props;
     this.setState({ pluginHandleList: [] });
     let type = 2;
@@ -68,23 +86,23 @@ class AddModal extends Component {
             if (useJSON) {
               setFieldsValue({
                 handleType: "2",
-                handleJSON: handle
+                handleJSON: handle,
               });
             }
           });
-        }
-      }
+        },
+      },
     });
   }
 
-  initRuleCondition = props => {
+  initRuleCondition = (props) => {
     const ruleConditions = props.ruleConditions || [
       {
         paramType: "uri",
         operator: "pathPattern",
         paramName: "/",
-        paramValue: ""
-      }
+        paramValue: "",
+      },
     ];
     ruleConditions.forEach((item, index) => {
       const { paramType } = item;
@@ -105,16 +123,16 @@ class AddModal extends Component {
     this.initDic("paramType");
   };
 
-  initDic = type => {
+  initDic = (type) => {
     const { dispatch } = this.props;
     dispatch({
       type: "shenyuDict/fetchByType",
       payload: {
         type,
-        callBack: dics => {
+        callBack: (dics) => {
           this.state[`${type}Dics`] = dics;
-        }
-      }
+        },
+      },
     });
   };
 
@@ -124,7 +142,11 @@ class AddModal extends Component {
     if (ruleConditions) {
       ruleConditions.forEach((item, index) => {
         const { paramType, operator, paramName, paramValue } = item;
-        if (!paramType || !operator || (operator !== "isBlank" && !paramValue)) {
+        if (
+          !paramType ||
+          !operator ||
+          (operator !== "isBlank" && !paramValue)
+        ) {
           message.destroy();
           message.error(`Line ${index + 1} condition is incomplete`);
           result = false;
@@ -149,7 +171,7 @@ class AddModal extends Component {
     return result;
   };
 
-  handleSubmit = e => {
+  handleSubmit = (e) => {
     e.preventDefault();
     const { form, handleOk, multiRuleHandle } = this.props;
     const { ruleConditions, pluginHandleList, customRulePage } = this.state;
@@ -162,7 +184,7 @@ class AddModal extends Component {
         enabled,
         matchRestful,
         handleType,
-        handleJSON
+        handleJSON,
       } = values;
       if (!err) {
         const submit = this.checkConditions();
@@ -176,7 +198,7 @@ class AddModal extends Component {
                 handle = [];
                 pluginHandleList.forEach((handleList, index) => {
                   handle[index] = {};
-                  handleList.forEach(item => {
+                  handleList.forEach((item) => {
                     handle[index][item.field] = values[item.field + index];
                   });
                 });
@@ -204,7 +226,7 @@ class AddModal extends Component {
             enabled,
             matchRestful,
             sort: Number(values.sort),
-            ruleConditions
+            ruleConditions,
           });
         }
       }
@@ -217,7 +239,7 @@ class AddModal extends Component {
       paramType: "uri",
       operator: "pathPattern",
       paramName: "/",
-      paramValue: ""
+      paramValue: "",
     });
 
     this.setState({ ruleConditions }, () => {
@@ -227,7 +249,7 @@ class AddModal extends Component {
     });
   };
 
-  handleDelete = index => {
+  handleDelete = (index) => {
     let { ruleConditions } = this.state;
     if (ruleConditions && ruleConditions.length > 1) {
       ruleConditions.splice(index, 1);
@@ -241,16 +263,16 @@ class AddModal extends Component {
   handleAddHandle = () => {
     let { pluginHandleList } = this.state;
     let pluginHandle = pluginHandleList[0];
-    let toAddPluginHandle = pluginHandle.map(e => {
+    let toAddPluginHandle = pluginHandle.map((e) => {
       return { ...e, value: null };
     });
     pluginHandleList.push(toAddPluginHandle);
     this.setState({
-      pluginHandleList
+      pluginHandleList,
     });
   };
 
-  handleDeleteHandle = index => {
+  handleDeleteHandle = (index) => {
     let { pluginHandleList } = this.state;
     if (pluginHandleList.length === 1) {
       message.destroy();
@@ -266,7 +288,13 @@ class AddModal extends Component {
     ruleConditions[index][name] = value;
     if (name === "paramType") {
       let key = `paramTypeValueEn${index}`;
-      if (value === "uri" || value === "host" || value === "ip" || value === "req_method" || value === "domain") {
+      if (
+        value === "uri" ||
+        value === "host" ||
+        value === "ip" ||
+        value === "req_method" ||
+        value === "domain"
+      ) {
         this.setState({ [key]: true });
         ruleConditions[index].paramName = "/";
       } else {
@@ -286,11 +314,9 @@ class AddModal extends Component {
       }
       if (value === "uri") {
         ruleConditions[index].operator = "pathPattern";
-      }
-      else if (value === "req_method") {
+      } else if (value === "req_method") {
         ruleConditions[index].operator = "=";
-      }
-      else {
+      } else {
         ruleConditions[index].operator = "";
       }
     }
@@ -298,7 +324,7 @@ class AddModal extends Component {
     this.setState({ ruleConditions });
   };
 
-  handleCopyData = copyData => {
+  handleCopyData = (copyData) => {
     if (!copyData) {
       this.setState({ visible: false });
       return;
@@ -310,10 +336,10 @@ class AddModal extends Component {
       matchMode: matchMode.toString(),
       loged,
       enabled,
-      sort
+      sort,
     };
     this.initRuleCondition({
-      ruleConditions: ruleConditions.map(v => {
+      ruleConditions: ruleConditions.map((v) => {
         const {
           id: rawId,
           selectorId,
@@ -322,7 +348,7 @@ class AddModal extends Component {
           ...condition
         } = v;
         return condition;
-      })
+      }),
     });
     form.setFieldsValue(formData);
     this.setState({ visible: false });
@@ -330,34 +356,47 @@ class AddModal extends Component {
 
   renderOperatorOptions = (operators, paramType) => {
     if (operators && operators instanceof Array) {
-      let operatorsFil = operators.map(operate => {
+      let operatorsFil = operators.map((operate) => {
         return (
           <Option key={operate.dictValue} value={operate.dictValue}>
             {operate.dictName}
           </Option>
-        )
-      })
+        );
+      });
       if (paramType !== "uri") {
-        operatorsFil = operatorsFil.filter(operate => {
-          return operate.key !== "pathPattern" ? operate : ""
-        })
+        operatorsFil = operatorsFil.filter((operate) => {
+          return operate.key !== "pathPattern" ? operate : "";
+        });
       }
-      if (paramType !== "post" && paramType !== "query" && paramType !== "header" && paramType !== "cookie") {
-        operatorsFil = operatorsFil.filter(operate => {
-          return operate.key !== "isBlank" ? operate : ""
-        })
+      if (
+        paramType !== "post" &&
+        paramType !== "query" &&
+        paramType !== "header" &&
+        paramType !== "cookie"
+      ) {
+        operatorsFil = operatorsFil.filter((operate) => {
+          return operate.key !== "isBlank" ? operate : "";
+        });
       }
-      if (paramType === "uri" || paramType === "host" || paramType === "ip" || paramType === "cookie" || paramType === "domain") {
-        operatorsFil = operatorsFil.filter(operate => {
-          return operate.key !== "TimeBefore" && operate.key !== "TimeAfter" ? operate : ""
-        })
+      if (
+        paramType === "uri" ||
+        paramType === "host" ||
+        paramType === "ip" ||
+        paramType === "cookie" ||
+        paramType === "domain"
+      ) {
+        operatorsFil = operatorsFil.filter((operate) => {
+          return operate.key !== "TimeBefore" && operate.key !== "TimeAfter"
+            ? operate
+            : "";
+        });
       }
       if (paramType === "req_method") {
-        operatorsFil = operatorsFil.filter(operate => {
-          return operate.key === "=" ? operate : ""
-        })
+        operatorsFil = operatorsFil.filter((operate) => {
+          return operate.key === "=" ? operate : "";
+        });
       }
-      return operatorsFil
+      return operatorsFil;
     }
 
     return "";
@@ -365,56 +404,70 @@ class AddModal extends Component {
 
   getParamValueInput = (item, index) => {
     if (item.operator === "TimeBefore" || item.operator === "TimeAfter") {
-      let date = new Date()
-      const defaultDay = date.getFullYear().toString().concat("-").concat((date.getMonth() + 1)).concat("-").concat(date.getDate())
-      let day = defaultDay
+      let date = new Date();
+      const defaultDay = date
+        .getFullYear()
+        .toString()
+        .concat("-")
+        .concat(date.getMonth() + 1)
+        .concat("-")
+        .concat(date.getDate());
       return (
-        <Input.Group
-          compact
-          style={{ width: 213, top: 0 }}
-        >
+        <Input.Group compact style={{ top: -2 }}>
           <DatePicker
-            onChange={e => {
-              day = e ? e.eraYear().toString().concat('-').concat((e.month() + 1)).concat("-").concat(e.date() < 10 ? '0'.concat(e.date()) : e.date()) : defaultDay
-            }}
             style={{ width: "51%" }}
-          />
-          <TimePicker
-            style={{ width: "49%" }}
-            onChange={e => {
-              let Time = e ? day.concat(" ").concat(e.hours()).concat(":").concat(e.minutes()).concat(":").concat(e.seconds() < 10 ? '0'.concat(e.seconds()) : e.seconds()) : ""
+            onChange={(e) => {
+              let day = e
+                ? e
+                    .eraYear()
+                    .toString()
+                    .concat("-")
+                    .concat(e.month() + 1)
+                    .concat("-")
+                    .concat(e.date())
+                : defaultDay;
               this.conditionChange(
                 index,
                 "paramValue",
-                Time
+                `${formatDateString(day)} ${formatTimeString(item.paramValue)}`,
               );
             }}
+            value={formatDate(item.paramValue)}
+          />
+          <TimePicker
+            style={{ width: "49%" }}
+            onChange={(e) => {
+              let time = e
+                ? ""
+                    .concat(" ")
+                    .concat(e.hours())
+                    .concat(":")
+                    .concat(e.minutes())
+                    .concat(":")
+                    .concat(e.seconds())
+                : "";
+              this.conditionChange(
+                index,
+                "paramValue",
+                `${formatDateString(item.paramValue)} ${formatTimeString(time)}`,
+              );
+            }}
+            value={formatTime(item.paramValue)}
           />
         </Input.Group>
-      )
-    }
-    else {
+      );
+    } else {
       return (
         <Input
           allowClear
-          onChange={e => {
-            this.conditionChange(
-              index,
-              "paramValue",
-              e.target.value
-            );
+          onChange={(e) => {
+            this.conditionChange(index, "paramValue", e.target.value);
           }}
           value={item.paramValue}
-          style={{
-            width: 160,
-            display: item.operator === "isBlank"
-              ? "none"
-              : "block"
-          }}
         />
-      )
+      );
     }
-  }
+  };
 
   render() {
     let {
@@ -428,7 +481,7 @@ class AddModal extends Component {
       sort = "",
       multiRuleHandle,
       pluginName,
-      handle
+      handle,
     } = this.props;
     const {
       ruleConditions,
@@ -437,7 +490,7 @@ class AddModal extends Component {
       matchModeDics,
       paramTypeDics,
       customRulePage,
-      visible
+      visible,
     } = this.state;
 
     let RuleHandleComponent;
@@ -450,19 +503,19 @@ class AddModal extends Component {
     const { getFieldDecorator } = form;
     const formItemLayout = {
       labelCol: {
-        sm: { span: 3 }
+        sm: { span: 3 },
       },
       wrapperCol: {
-        sm: { span: 21 }
-      }
+        sm: { span: 21 },
+      },
     };
     const formCheckLayout = {
       labelCol: {
-        sm: { span: 18 }
+        sm: { span: 18 },
       },
       wrapperCol: {
-        sm: { span: 4 }
-      }
+        sm: { span: 4 },
+      },
     };
     return (
       <Modal
@@ -484,15 +537,15 @@ class AddModal extends Component {
               rules: [
                 {
                   required: true,
-                  message: getIntlContent("SHENYU.COMMON.INPUTNAME")
-                }
+                  message: getIntlContent("SHENYU.COMMON.INPUTNAME"),
+                },
               ],
-              initialValue: name
+              initialValue: name,
             })(
               <Input
                 allowClear
                 placeholder={getIntlContent(
-                  "SHENYU.PLUGIN.SELECTOR.LIST.COLUMN.NAME"
+                  "SHENYU.PLUGIN.SELECTOR.LIST.COLUMN.NAME",
                 )}
                 addonAfter={
                   <Button
@@ -505,7 +558,7 @@ class AddModal extends Component {
                     {getIntlContent("SHENYU.PLUGIN.SEARCH.RULE.COPY")}
                   </Button>
                 }
-              />
+              />,
             )}
           </FormItem>
           <RuleCopy
@@ -523,42 +576,41 @@ class AddModal extends Component {
               rules: [
                 {
                   required: true,
-                  message: getIntlContent("SHENYU.COMMON.INPUTMATCHTYPE")
-                }
+                  message: getIntlContent("SHENYU.COMMON.INPUTMATCHTYPE"),
+                },
               ],
-              initialValue: `${matchMode}`
+              initialValue: `${matchMode}`,
             })(
               <Select>
                 {matchModeDics &&
-                  matchModeDics.map(item => {
+                  matchModeDics.map((item) => {
                     return (
                       <Option key={item.dictValue} value={item.dictValue}>
                         {item.dictName}
                       </Option>
                     );
                   })}
-              </Select>
+              </Select>,
             )}
           </FormItem>
-          <div className={styles.ruleConditions}>
-            <h3 className={styles.header} style={{ width: 95 }}>
-              <strong>*</strong>
-              {getIntlContent("SHENYU.COMMON.CONDITION")}:
-            </h3>
-            <div className={styles.content} style={{ marginLeft: '2%' }}>
+          <div className={styles.condition}>
+            <FormItem
+              label={getIntlContent("SHENYU.COMMON.CONDITION")}
+              required
+              {...formItemLayout}
+            >
               {ruleConditions.map((item, index) => {
                 return (
-                  <ul key={index}>
-                    <li>
+                  <Row key={index} gutter={8}>
+                    <Col span={5}>
                       <Select
-                        onChange={value => {
+                        onChange={(value) => {
                           this.conditionChange(index, "paramType", value);
                         }}
                         value={item.paramType}
-                        style={{ width: 120 }}
                       >
                         {paramTypeDics &&
-                          paramTypeDics.map(type => {
+                          paramTypeDics.map((type) => {
                             return (
                               <Option
                                 key={type.dictValue}
@@ -569,43 +621,49 @@ class AddModal extends Component {
                             );
                           })}
                       </Select>
-                    </li>
-                    <li
+                    </Col>
+                    <Col
+                      span={4}
                       style={{
                         display: this.state[`paramTypeValueEn${index}`]
                           ? "none"
-                          : "block"
+                          : "block",
                       }}
                     >
                       <Input
                         allowClear
-                        onChange={e => {
+                        onChange={(e) => {
                           this.conditionChange(
                             index,
                             "paramName",
-                            e.target.value
+                            e.target.value,
                           );
                         }}
                         placeholder={item.paramName}
-                        style={{ width: 105 }}
                       />
-                    </li>
-                    <li>
+                    </Col>
+                    <Col span={4}>
                       <Select
-                        onChange={value => {
+                        onChange={(value) => {
                           this.conditionChange(index, "operator", value);
                         }}
                         value={item.operator}
-                        style={{ width: 114 }}
                       >
-                        {this.renderOperatorOptions(operatorDics, item.paramType)}
+                        {this.renderOperatorOptions(
+                          operatorDics,
+                          item.paramType,
+                        )}
                       </Select>
-                    </li>
-
-                    <li>
+                    </Col>
+                    <Col
+                      span={7}
+                      style={{
+                        display: item.operator === "isBlank" ? "none" : "block",
+                      }}
+                    >
                       {this.getParamValueInput(item, index)}
-                    </li>
-                    <li>
+                    </Col>
+                    <Col span={4}>
                       <Button
                         type="danger"
                         onClick={() => {
@@ -614,20 +672,25 @@ class AddModal extends Component {
                       >
                         {getIntlContent("SHENYU.COMMON.DELETE.NAME")}
                       </Button>
-                    </li>
-                  </ul>
+                    </Col>
+                  </Row>
                 );
               })}
-            </div>
-            <div>
-              <Button onClick={this.handleAdd} type="primary">
-                {getIntlContent("SHENYU.COMMON.ADD")}
+            </FormItem>
+            <FormItem label={" "} colon={false} {...formItemLayout}>
+              <Button
+                className={styles.addButton}
+                onClick={this.handleAdd}
+                type="primary"
+              >
+                {getIntlContent("SHENYU.COMMON.ADD")}{" "}
+                {getIntlContent("SHENYU.COMMON.CONDITION")}
               </Button>
-            </div>
+            </FormItem>
           </div>
           {RuleHandleComponent && (
             <RuleHandleComponent
-              onRef={handleComponentRef => {
+              onRef={(handleComponentRef) => {
                 this.handleComponentRef = handleComponentRef;
               }}
               onAddPluginHandle={this.handleAddHandle}
@@ -638,41 +701,6 @@ class AddModal extends Component {
               multiRuleHandle={multiRuleHandle}
             />
           )}
-          <div className={styles.layout}>
-            <FormItem
-              style={{ margin: "0 30px" }}
-              {...formCheckLayout}
-              label={getIntlContent("SHENYU.SELECTOR.PRINTLOG")}
-            >
-              {getFieldDecorator("loged", {
-                initialValue: loged,
-                valuePropName: "checked",
-                rules: [{ required: true }]
-              })(<Switch />)}
-            </FormItem>
-            <FormItem
-              {...formCheckLayout}
-              label={getIntlContent("SHENYU.SELECTOR.WHETHEROPEN")}
-            >
-              {getFieldDecorator("enabled", {
-                initialValue: enabled,
-                valuePropName: "checked",
-                rules: [{ required: true }]
-              })(<Switch />)}
-            </FormItem>
-            <FormItem
-              style={{ margin: "0 30px" }}
-              {...formCheckLayout}
-              label={getIntlContent("SHENYU.SELECTOR.MATCHRESTFUL")}
-            >
-              {getFieldDecorator("matchRestful", {
-                initialValue: matchRestful,
-                valuePropName: "checked",
-                rules: [{ required: true }]
-              })(<Switch />)}
-            </FormItem>
-          </div>
-
           <FormItem
             label={getIntlContent("SHENYU.SELECTOR.EXEORDER")}
             {...formItemLayout}
@@ -682,19 +710,55 @@ class AddModal extends Component {
               rules: [
                 {
                   required: true,
-                  message: getIntlContent("SHENYU.SELECTOR.INPUTNUMBER")
+                  message: getIntlContent("SHENYU.SELECTOR.INPUTNUMBER"),
                 },
                 {
                   pattern: /^([1-9][0-9]{0,2}|1000)$/,
-                  message: getIntlContent("SHENYU.SELECTOR.INPUTNUMBER")
-                }
-              ]
+                  message: getIntlContent("SHENYU.SELECTOR.INPUTNUMBER"),
+                },
+              ],
             })(
               <Input
                 allowClear
                 placeholder={getIntlContent("SHENYU.SELECTOR.INPUTORDER")}
-              />
+              />,
             )}
+          </FormItem>
+          <FormItem label={" "} colon={false} {...formItemLayout}>
+            <div className={styles.layout}>
+              <FormItem
+                style={{ margin: "0 30px" }}
+                {...formCheckLayout}
+                label={getIntlContent("SHENYU.SELECTOR.PRINTLOG")}
+              >
+                {getFieldDecorator("loged", {
+                  initialValue: loged,
+                  valuePropName: "checked",
+                  rules: [{ required: true }],
+                })(<Switch />)}
+              </FormItem>
+              <FormItem
+                {...formCheckLayout}
+                label={getIntlContent("SHENYU.SELECTOR.WHETHEROPEN")}
+              >
+                {getFieldDecorator("enabled", {
+                  initialValue: enabled,
+                  valuePropName: "checked",
+                  rules: [{ required: true }],
+                })(<Switch />)}
+              </FormItem>
+              <FormItem
+                style={{ margin: "0 30px" }}
+                {...formCheckLayout}
+                label={getIntlContent("SHENYU.SELECTOR.MATCHRESTFUL")}
+              >
+                {getFieldDecorator("matchRestful", {
+                  initialValue: matchRestful,
+                  valuePropName: "checked",
+                  rules: [{ required: true }],
+                })(<Switch />)}
+              </FormItem>
+            </div>
           </FormItem>
         </Form>
       </Modal>
